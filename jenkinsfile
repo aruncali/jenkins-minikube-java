@@ -30,15 +30,16 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
+           steps {
+              withSonarQubeEnv('SonarQube') {
                sh '''
-                   mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                   mvn -B -e \
+                   org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
                     -Dsonar.projectKey=java-application
-                  '''
-              }
-         }
-      }
+                '''
+               }
+           }
+       }
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
