@@ -29,17 +29,19 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-           steps {
+       stage('SonarQube Analysis') {
+          steps {
               withSonarQubeEnv('SonarQube') {
-               sh '''
-                   mvn -B -e -X \
-                   org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar \
-                    -Dsonar.projectKey=java-application
-                '''
-               }
-           }
-       }
+                sh '''
+                  mkdir -p "$WORKSPACE/.sonar/cache"
+                  mvn -B \
+                  -Dsonar.projectKey=java-application \
+                  -Dsonar.userHome="$WORKSPACE/.sonar" \
+                  sonar:sonar
+            '''
+        }
+    }
+}
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
