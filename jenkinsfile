@@ -2,7 +2,7 @@
 pipeline {
     agent {
         docker {
-            image ' arunubuntu/jenkins-java-agent:latest'
+            image 'arunubuntu/jenkins-java-agent:latest'
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -17,11 +17,6 @@ pipeline {
     }
 
     stages {
-      stage('Pull Docker Agent') {
-        steps {
-        sh 'docker pull "$DOCKER_AGENT_IMAGE"'
-          }
-       }
         stage('Checkout') {
             steps {
                 checkout scm
