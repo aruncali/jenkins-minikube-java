@@ -11,9 +11,17 @@ pipeline {
         DOCKERHUB_USERNAME = 'arunubuntu'
         IMAGE_NAME = 'java-application'
         IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKER_AGENT_IMAGE = 'arunubuntu/jenkins-java-agent:latest'
+
+
     }
 
     stages {
+      stage('Pull Docker Agent') {
+        steps {
+        sh 'docker pull "$DOCKER_AGENT_IMAGE"'
+          }
+       }
         stage('Checkout') {
             steps {
                 checkout scm
