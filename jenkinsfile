@@ -35,9 +35,9 @@ pipeline {
                 sh '''
                   mkdir -p "$WORKSPACE/.sonar/cache"
                   mvn -B \
-                  -Dsonar.projectKey=java-application \
-                  -Dsonar.userHome="$WORKSPACE/.sonar" \
-                  sonar:sonar
+                    -Dsonar.projectKey=java-application \
+                    -Dsonar.userHome="$WORKSPACE/.sonar" \
+                     org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
             '''
         }
     }
