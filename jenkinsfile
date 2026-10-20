@@ -85,6 +85,30 @@ pipeline {
                 }
             }
         }
+
+stage('Push Manifest to GitHub') {
+    steps {
+        withCredentials([gitUsernamePassword(
+            credentialsId: 'github-creds',
+            gitToolName: 'Default'
+        )]) {
+            sh '''
+                git config user.name "aruncali"
+                git config user.email "soloman747474@gmail.com"
+
+                git add k8s/deployment-service.yaml
+
+                if ! git diff --cached --quiet; then
+                    git commit -m "Update image to build ${IMAGE_TAG}"
+                    git push origin HEAD:main
+                else
+                    echo "No changes to push"
+                fi
+            '''
+        }
+    }
+}
+
     }
 
     post {
