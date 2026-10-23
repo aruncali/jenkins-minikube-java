@@ -86,28 +86,39 @@ pipeline {
             }
         }
 
-stage('Push Manifest to GitHub') {
+
+stage('Push Updated Manifest to GitHub') {
     steps {
-        withCredentials([gitUsernamePassword(
-            credentialsId: 'github-creds',
-            gitToolName: 'Default'
-        )]) {
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'github-creds',
+                usernameVariable: 'GIT_USERNAME',
+                passwordVariable: 'GIT_TOKEN'
+            )
+        ]) {
             sh '''
+                set -eu
+                set +x
+
                 git config user.name "aruncali"
                 git config user.email "soloman747474@gmail.com"
 
                 git add k8s/deployment-service.yaml
 
                 if ! git diff --cached --quiet; then
-                    git commit -m "Update image to build ${IMAGE_TAG}"
-                    git push origin HEAD:main
+                    git commit -m "Update Kubernetes image to build ${IMAGE_TAG}"
+
+                    git push \
+                      "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/k8s/deployment-service.yaml" \
+                      HEAD:main
                 else
-                    echo "No changes to push"
+                    echo "No manifest changes to commit."
                 fi
             '''
         }
     }
 }
+
 
     }
 
