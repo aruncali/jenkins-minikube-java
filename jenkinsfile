@@ -29,18 +29,21 @@ pipeline {
         }
 
        stage('SonarQube Analysis') {
-          steps {
-              withSonarQubeEnv('SonarQube') {
-                sh '''
-                  mkdir -p "$WORKSPACE/.sonar/cache"
-                  mvn -B \
-                    -Dsonar.projectKey=java-application \
-                    -Dsonar.userHome="$WORKSPACE/.sonar" \
-                     org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
+            steps {
+            withSonarQubeEnv('SonarQube') {
+            sh '''
+                set -e
+
+                mkdir -p "$WORKSPACE/.sonar/cache"
+
+                mvn -B \
+                  -Dsonar.projectKey=java-application \
+                  -Dsonar.userHome="$WORKSPACE/.sonar" \
+                  org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
             '''
-             }
-           }
         }
+    }
+}
       stage('Check SonarQube Connectivity') {
          steps {
             sh '''
