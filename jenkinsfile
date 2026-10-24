@@ -10,12 +10,10 @@ pipeline {
         DOCKERHUB_USERNAME = 'arunubuntu'
         IMAGE_NAME = 'java-application'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKER_AGENT_IMAGE = 'arunubuntu/jenkins-java-agent:latest'
-
-
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -28,39 +26,46 @@ pipeline {
             }
         }
 
-       stage('SonarQube Analysis') {
+        stage('Check SonarQube Connectivity') {
             steps {
-            withSonarQubeEnv('SonarQube') {
-            sh '''
-                set -e
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        set -eu
 
-                mkdir -p "$WORKSPACE/.sonar/cache"
+                        echo "Checking SonarQube connectivity..."
 
-                mvn -B \
-                  -Dsonar.projectKey=java-application \
-                  -Dsonar.userHome="$WORKSPACE/.sonar" \
-                  org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
-            '''
+                        curl -fsS --connect-timeout 5 \
+                          "$SONAR_HOST_URL/api/system/status"
+                    '''
+                }
+            }
         }
-    }
-}
-      stage('Check SonarQube Connectivity') {
-         steps {
-            sh '''
-               echo "Checking SonarQube connectivity..."
 
-               curl -v --connect-timeout 5 \
-               http://127.0.0.1:9000/api/system/status
-             '''
-           }
-         }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        set -eu
+
+                        mkdir -p "$WORKSPACE/.sonar/cache"
+
+                        mvn -B \
+                          -Dsonar.projectKey=java-application \
+                          -Dsonar.userHome="$WORKSPACE/.sonar" \
+                          org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar
+                    '''
+                }
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    set -eu
+
                     docker build \
-                      -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} \
-                      -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest .
+                      -t "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" \
+                      -t "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest" .
                 '''
             }
         }
@@ -75,15 +80,17 @@ pipeline {
                     )
                 ]) {
                     sh '''
+                        set -eu
                         set +x
+
                         echo "$DH_PASSWORD" | docker login \
                           -u "$DH_USER" --password-stdin
 
                         docker push \
-                          ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}
+                          "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
 
                         docker push \
-                          ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest
+                          "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest"
 
                         docker logout
                     '''
@@ -91,49 +98,79 @@ pipeline {
             }
         }
 
+        stage('Update Kubernetes Image Tag') {
+            steps {
+                sh '''
+                    set -eu
 
-stage('Push Updated Manifest to GitHub') {
-    steps {
-        withCredentials([
-            usernamePassword(
-                credentialsId: 'github-creds',
-                usernameVariable: 'GIT_USERNAME',
-                passwordVariable: 'GIT_TOKEN'
-            )
-        ]) {
-            sh '''
-                set -eu
-                set +x
+                    sed -i \
+                      "s|image: arunubuntu/java-application:.*|image: arunubuntu/java-application:${IMAGE_TAG}|" \
+                      k8s/deployment-service.yaml
 
-                git config user.name "aruncali"
-                git config user.email "soloman747474@gmail.com"
-
-                git add k8s/deployment-service.yaml
-
-                if ! git diff --cached --quiet; then
-                    git commit -m "Update Kubernetes image to build ${IMAGE_TAG}"
-
-                    git push \
-                      "https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/k8s/deployment-service.yaml" \
-                      HEAD:main
-                else
-                    echo "No manifest changes to commit."
-                fi
-            '''
+                    echo "Updated Kubernetes manifest:"
+                    grep 'image:' k8s/deployment-service.yaml
+                '''
+            }
         }
-    }
-}
 
+        stage('Push Updated Manifest to GitHub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-creds',
+                        usernameVariable: 'GIT_USERNAME',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+                        set +x
 
+                        git config user.name "aruncali"
+                        git config user.email "soloman747474@gmail.com"
+
+                        git add k8s/deployment-service.yaml
+
+                        if ! git diff --cached --quiet; then
+                            git commit -m "Update Kubernetes image to build ${IMAGE_TAG}"
+
+                            ASKPASS="$(mktemp)"
+                            trap 'rm -f "$ASKPASS"' EXIT
+
+                            cat > "$ASKPASS" <<'EOF'
+#!/bin/sh
+case "$1" in
+    *Username*) printf '%s\\n' "$GIT_USERNAME" ;;
+    *Password*) printf '%s\\n' "$GIT_TOKEN" ;;
+    *) exit 1 ;;
+esac
+EOF
+
+                            chmod 700 "$ASKPASS"
+                            export GIT_ASKPASS="$ASKPASS"
+                            export GIT_TERMINAL_PROMPT=0
+
+                            git push \
+                              "https://github.com/aruncali/jenkins-minikube-java" \
+                              HEAD:main
+                        else
+                            echo "No manifest changes to commit."
+                        fi
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build, analysis and image push succeeded.'
+            echo 'Build, SonarQube analysis, Docker push and GitOps manifest update succeeded.'
         }
+
         failure {
             echo 'Pipeline failed. Check the stage logs.'
         }
+
         always {
             echo 'Pipeline finished.'
         }
