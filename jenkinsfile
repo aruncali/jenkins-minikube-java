@@ -1,4 +1,3 @@
-
 pipeline {
     agent {
         docker {
@@ -42,13 +41,16 @@ pipeline {
              }
            }
         }
-    //  stage('Quality Gate') {
-     //    steps {
-      //      timeout(time: 5, unit: 'MINUTES') {
-       //         waitForQualityGate abortPipeline: true
-        //   }
-         // } 
-       //}
+      stage('Check SonarQube Connectivity') {
+         steps {
+            sh '''
+               echo "Checking SonarQube connectivity..."
+
+               curl -v --connect-timeout 5 \
+               http://127.0.0.1:9000/api/system/status
+             '''
+           }
+         }
 
         stage('Build Docker Image') {
             steps {
