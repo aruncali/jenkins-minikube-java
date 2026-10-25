@@ -116,12 +116,11 @@ pipeline {
         stage('Push Updated Manifest to GitHub') {
             steps {
                 withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-creds',
-                        usernameVariable: 'GIT_USERNAME',
-                        passwordVariable: 'GIT_TOKEN'
-                    )
-                ]) {
+                 string(
+                     credentialsId: 'github-creds',
+                     variable: 'GIT_TOKEN'
+                     )
+               ])  {
                     sh '''
                         set -eu
                         set +x
@@ -140,7 +139,7 @@ pipeline {
                             cat > "$ASKPASS" <<'EOF'
 #!/bin/sh
 case "$1" in
-    *Username*) printf '%s\\n' "$GIT_USERNAME" ;;
+    *Username*) printf '%s\\n' "aruncali" ;;
     *Password*) printf '%s\\n' "$GIT_TOKEN" ;;
     *) exit 1 ;;
 esac
