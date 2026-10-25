@@ -150,7 +150,7 @@ EOF
                             export GIT_TERMINAL_PROMPT=0
 
                             git push \
-                              "https://github.com/aruncali/jenkins-minikube-java" \
+                              "https://github.com/aruncali/jenkins-minikube-java/k8s/deployment-service.yaml" \
                               HEAD:main
                         else
                             echo "No manifest changes to commit."
