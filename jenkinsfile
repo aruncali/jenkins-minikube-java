@@ -19,30 +19,6 @@ pipeline {
                 checkout scm
             }
         }
-       stage('Check Git Workspace') {
-    steps {
-        sh '''
-            echo "=== Jenkins workspace ==="
-            echo "WORKSPACE=$WORKSPACE"
-            pwd
-
-            echo "=== Workspace files ==="
-            ls -la "$WORKSPACE"
-
-            echo "=== Git repository check ==="
-            if [ -d "$WORKSPACE/.git" ]; then
-                echo ".git directory exists"
-            else
-                echo "ERROR: .git directory is missing"
-            fi
-
-            cd "$WORKSPACE"
-            git rev-parse --show-toplevel
-            git status
-        '''
-    }
-}
-
         stage('Build and Test') {
             steps {
                 sh 'mvn clean verify'
@@ -135,31 +111,40 @@ pipeline {
                 '''
             }
         }
+stage('Push Updated Manifest to GitHub') {
+    steps {
+        withCredentials([
+            string(
+                credentialsId: 'github-creds',
+                variable: 'GIT_TOKEN'
+            )
+        ]) {
+            sh '''
+                set -eu
+                set +x
 
-        stage('Push Updated Manifest to GitHub') {
-            steps {
-                withCredentials([
-                 string(
-                     credentialsId: 'github-creds',
-                     variable: 'GIT_TOKEN'
-                     )
-               ])  {
-                    sh '''
-                        set -eu
-                        set +x
+                # Fix Git's dubious ownership protection
+                git config --global --add safe.directory "$WORKSPACE"
 
-                        git config user.name "aruncali"
-                        git config user.email "soloman747474@gmail.com"
+                # Verify repository
+                cd "$WORKSPACE"
+                git rev-parse --show-toplevel
+                git status
 
-                        git add k8s/deployment-service.yaml
+                # Configure Git identity
+                git config user.name "aruncali"
+                git config user.email "soloman747474@gmail.com"
 
-                        if ! git diff --cached --quiet; then
-                            git commit -m "Update Kubernetes image to build ${IMAGE_TAG}"
+                # Stage Kubernetes manifest
+                git add k8s/deployment-service.yaml
 
-                            ASKPASS="$(mktemp)"
-                            trap 'rm -f "$ASKPASS"' EXIT
+                if ! git diff --cached --quiet; then
+                    git commit -m "Update Kubernetes image to build ${IMAGE_TAG}"
 
-                            cat > "$ASKPASS" <<'EOF'
+                    ASKPASS="$(mktemp)"
+                    trap 'rm -f "$ASKPASS"' EXIT
+
+                    cat > "$ASKPASS" <<'EOF'
 #!/bin/sh
 case "$1" in
     *Username*) printf '%s\\n' "aruncali" ;;
@@ -168,21 +153,21 @@ case "$1" in
 esac
 EOF
 
-                            chmod 700 "$ASKPASS"
-                            export GIT_ASKPASS="$ASKPASS"
-                            export GIT_TERMINAL_PROMPT=0
+                    chmod 700 "$ASKPASS"
+                    export GIT_ASKPASS="$ASKPASS"
+                    export GIT_TERMINAL_PROMPT=0
 
-                            git push \
-                              https://github.com/aruncali/jenkins-minikube-java.git \
-                              HEAD:main
-                        else
-                            echo "No manifest changes to commit."
-                        fi
-                    '''
-                }
-            }
+                    git push \
+                      https://github.com/aruncali/jenkins-minikube-java.git \
+                      HEAD:main
+                else
+                    echo "No manifest changes to commit."
+                fi
+            '''
         }
     }
+}
+}
 
     post {
         success {
