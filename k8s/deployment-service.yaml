@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: java-application
-          image: arunubuntu/java-application:latest
+          image: arunubuntu/java-application:36
           imagePullPolicy: Always
           ports:
             - containerPort: 1111
