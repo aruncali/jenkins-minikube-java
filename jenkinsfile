@@ -19,6 +19,29 @@ pipeline {
                 checkout scm
             }
         }
+       stage('Check Git Workspace') {
+    steps {
+        sh '''
+            echo "=== Jenkins workspace ==="
+            echo "WORKSPACE=$WORKSPACE"
+            pwd
+
+            echo "=== Workspace files ==="
+            ls -la "$WORKSPACE"
+
+            echo "=== Git repository check ==="
+            if [ -d "$WORKSPACE/.git" ]; then
+                echo ".git directory exists"
+            else
+                echo "ERROR: .git directory is missing"
+            fi
+
+            cd "$WORKSPACE"
+            git rev-parse --show-toplevel
+            git status
+        '''
+    }
+}
 
         stage('Build and Test') {
             steps {
